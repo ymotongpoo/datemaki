@@ -18,7 +18,7 @@ import (
 	"testing"
 )
 
-var relativeAgoTests = []string{
+var agoTests = []string{
 	"2 seconds ago",
 	"3 minutes ago",
 	"4 hours ago",
@@ -31,7 +31,7 @@ var relativeAgoTests = []string{
 }
 
 func TestSplitTokens(t *testing.T) {
-	for i, test := range relativeAgoTests {
+	for i, test := range agoTests {
 		pre1 := strings.Replace(test, ",", " ", -1)
 		pre2 := strings.Replace(pre1, ".", " ", -1)
 		words := strings.Fields(pre2)
@@ -43,11 +43,26 @@ func TestSplitTokens(t *testing.T) {
 }
 
 func TestParseAgo(t *testing.T) {
-	for i, test := range relativeAgoTests {
-		parsed, err := parseAgo(test)
+	for i, test := range agoTests {
+		parsed, err := ParseAgo(test)
 		if err != nil {
 			t.Errorf("#%v: %v", i, err)
 		}
 		t.Logf("#%v: parsed: %v (%v)", i, parsed, test)
+	}
+}
+
+var relativeTests = []string{
+	"now",
+	"today",
+	"yesterday",
+	"last friday",
+}
+
+func TestIsRelative(t *testing.T) {
+	for i, test := range relativeTests {
+		if !isRelative(test) {
+			t.Errorf("#%v: %v", i, test)
+		}
 	}
 }
