@@ -5,7 +5,7 @@ build:
     - setup-go-workspace
     - wercker/golint
     - script:
-      name: go test
+      name: go test -test.v
       code: |
         go test
 
