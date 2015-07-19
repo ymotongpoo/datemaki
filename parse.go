@@ -111,16 +111,69 @@ func subDate(t time.Time, n int, unit string) (time.Time, error) {
 // ParseRelative returns absolute datetime corresponding to relative date expressed in value.
 func ParseRelative(value string) (time.Time, error) {
 	tokens := splitTokens(value)
-	_ = tokens
-	var t time.Time
-	t = time.Now() // TODO(ymotongpoo): implement me
+	t := time.Now().In(time.Local)
+	for i := 0; i < len(tokens); i++ {
+		switch tokens[i] {
+		case "last":
+			days, err := daysFromLast(tokens[i+1])
+			if err != nil {
+				return t, err
+			}
+			i++
+			t = t.Add(time.Duration(-1*days) * time.Hour * 24)
+		case "yesterday":
+			t = t.Add(time.Duration(-24 * time.Hour))
+		case "today":
+			// pass
+		case "noon", "tea", "midnight":
+			var err error
+			t, err = convertTimeWord(tokens[i])
+			if err != nil {
+				return t, err
+			}
+		case "now", "never":
+			return convertTimeWord(tokens[i])
+		default:
+			var err error
+			t, err = parse12HourClock(tokens[i])
+			if err != nil {
+				return t, fmt.Errorf("Unexpected time value, %v: %v", value, err) // TODO(ymotongpoo): numeric expression like "19:00" has to be supported here.
+			}
+		}
+	}
 	return t, nil
 }
 
-func ParseTimeWord(word string) (time.Time, error) {
+// daysFromLast returns days from last weekday passed to
+func daysFromLast(weekday string) (int, error) {
+	now := time.Now().In(time.Local)
+	var day int
+	switch strings.ToLower(weekday) { // time.Weekday defines value.
+	case "sunday":
+		day = 0
+	case "monday":
+		day = 1
+	case "tuesday":
+		day = 2
+	case "wednesday":
+		day = 3
+	case "thursday":
+		day = 4
+	case "friday":
+		day = 5
+	case "saturday":
+		day = 6
+	default:
+		return 0, fmt.Errorf("%v is not weekday", weekday)
+	}
+	return int(now.Weekday()) - day + 7, nil
+}
+
+// convertTimeWord converts words of time of day to numerial expression.
+func convertTimeWord(word string) (time.Time, error) {
 	now := time.Now().In(time.Local)
 	switch word {
-	case "now", "today":
+	case "now":
 		return now, nil
 	case "noon":
 		return time.Date(now.Year(), now.Month(), now.Day(), 12, 0, 0, 0, time.Local), nil
@@ -128,10 +181,13 @@ func ParseTimeWord(word string) (time.Time, error) {
 		return time.Date(now.Year(), now.Month(), now.Day(), 15, 0, 0, 0, time.Local), nil
 	case "midnight":
 		return time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local), nil
+	case "never":
+		return time.Unix(0, 0), nil
 	}
 	return now, fmt.Errorf("Unsupported time word: %v", word)
 }
 
+// parse12HourClock convers 12-hour clock time to 24-hour one.
 func parse12HourClock(word string) (time.Time, error) {
 	lower := strings.ToLower(word)
 	now := time.Now().In(time.Local)

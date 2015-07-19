@@ -73,6 +73,16 @@ func TestHasRelative(t *testing.T) {
 	}
 }
 
+func TestParseRelative(t *testing.T) {
+	for i, test := range relativeTests {
+		parsed, err := ParseRelative(test)
+		if err != nil {
+			t.Errorf("#%v: %v", i, err)
+		}
+		t.Logf("#%v: %v (%v)", i, parsed, test)
+	}
+}
+
 var TwelveHourClockTests = []string{
 	"10am",
 	"3pm",
@@ -84,7 +94,7 @@ func TestParse12HourClock(t *testing.T) {
 	for i, test := range TwelveHourClockTests {
 		parsed, err := parse12HourClock(test)
 		if err != nil {
-			t.Errorf("#%v: %v", i, test)
+			t.Errorf("#%v: %v", i, err)
 		}
 		t.Logf("#%v: %v (%v)", i, parsed, test)
 	}
