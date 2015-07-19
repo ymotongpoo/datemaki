@@ -18,6 +18,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 )
 
 // Parse accepts contextful date format and returns absolute time.Time value.
@@ -26,10 +28,12 @@ func Parse(value string) (time.Time, error) {
 	switch {
 	case strings.HasSuffix(value, "ago"):
 		return ParseAgo(value)
-	case isRelative(value):
+	case hasRelative(value):
 		return ParseRelative(value)
+	default:
+		return ParseAbsolute(value)
 	}
-	return time.Now(), nil // TODO(ymotongpoo): replace actual time.
+	return time.Now().In(time.Local), nil // TODO(ymotongpoo): replace actual time.
 }
 
 // splitTokens splits value with commas, periods and spaces.
@@ -42,11 +46,11 @@ func splitTokens(value string) []string {
 }
 
 // hasRelative confirms if value contains relative datatime words, such as
-// "now", "today", "last xxx" and so on.
-func isRelative(value string) bool {
+// "now", "today", "last xxx", "noon", "pm", "am"  and so on.
+func hasRelative(value string) bool {
 	keywords := []string{"now", "today", "yesterday", "last"}
 	for _, k := range keywords {
-		if strings.HasPrefix(value, k) {
+		if strings.Contains(value, k) {
 			return true
 		}
 	}
@@ -56,18 +60,19 @@ func isRelative(value string) bool {
 // ParseAgo parse "xxxx ago" format and returns corresponding absolute datetime.
 func ParseAgo(value string) (time.Time, error) {
 	tokens := splitTokens(value)
-	now := time.Now()
+	now := time.Now().In(time.Local)
 	for i := 0; i < len(tokens); i++ {
 		t := tokens[i]
 		if t == "ago" {
 			return now, nil
 		}
 		if i%2 == 0 {
+			var err error
 			n, err := strconv.Atoi(t)
 			if err != nil {
 				return now, fmt.Errorf("Format error: %v", t)
 			}
-			now, err := subDate(now, n, tokens[i+1])
+			now, err = subDate(now, n, tokens[i+1])
 			if err != nil {
 				return now, err
 			}
@@ -104,7 +109,57 @@ func subDate(t time.Time, n int, unit string) (time.Time, error) {
 }
 
 // ParseRelative returns absolute datetime corresponding to relative date expressed in value.
-//
 func ParseRelative(value string) (time.Time, error) {
-	return time.Now(), nil // TODO(ymotongpoo): implement me.
+	tokens := splitTokens(value)
+	_ = tokens
+	var t time.Time
+	t = time.Now() // TODO(ymotongpoo): implement me
+	return t, nil
+}
+
+func ParseTimeWord(word string) (time.Time, error) {
+	now := time.Now().In(time.Local)
+	switch word {
+	case "now", "today":
+		return now, nil
+	case "noon":
+		return time.Date(now.Year(), now.Month(), now.Day(), 12, 0, 0, 0, time.Local), nil
+	case "tea":
+		return time.Date(now.Year(), now.Month(), now.Day(), 15, 0, 0, 0, time.Local), nil
+	case "midnight":
+		return time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local), nil
+	}
+	return now, fmt.Errorf("Unsupported time word: %v", word)
+}
+
+func parse12HourClock(word string) (time.Time, error) {
+	lower := strings.ToLower(word)
+	now := time.Now().In(time.Local)
+
+	start := 0
+	hour := 0
+	var err error
+	for width := 0; start < len(lower); start += width {
+		var r rune
+		r, width = utf8.DecodeRuneInString(lower[start:])
+		if !unicode.IsNumber(r) {
+			hour, err = strconv.Atoi(lower[:start])
+			if err != nil || hour > 12 || hour < 0 {
+				return time.Now(), fmt.Errorf("Wrong hour: %v", word)
+			}
+			if string(lower[start:]) == "am" {
+				break
+			}
+			if string(lower[start:]) == "pm" {
+				hour += 12
+				break
+			}
+			return time.Now(), fmt.Errorf("Unsupported 12 hour clock notation: %v", word)
+		}
+	}
+	return time.Date(now.Year(), now.Month(), now.Day(), hour, 0, 0, 0, time.Local), nil
+}
+
+func ParseAbsolute(value string) (time.Time, error) {
+	return time.Now(), nil // TODO(ymotongpoo): implement me
 }

@@ -57,12 +57,35 @@ var relativeTests = []string{
 	"today",
 	"yesterday",
 	"last friday",
+	"noon yesterday",
+	"tea yesterday",
+	"midnight today",
+	"3pm today",
+	"2am last friday",
+	"19:00 yesterday",
 }
 
-func TestIsRelative(t *testing.T) {
+func TestHasRelative(t *testing.T) {
 	for i, test := range relativeTests {
-		if !isRelative(test) {
+		if !hasRelative(test) {
 			t.Errorf("#%v: %v", i, test)
 		}
+	}
+}
+
+var TwelveHourClockTests = []string{
+	"10am",
+	"3pm",
+	"1AM",
+	"5PM",
+}
+
+func TestParse12HourClock(t *testing.T) {
+	for i, test := range TwelveHourClockTests {
+		parsed, err := parse12HourClock(test)
+		if err != nil {
+			t.Errorf("#%v: %v", i, test)
+		}
+		t.Logf("#%v: %v (%v)", i, parsed, test)
 	}
 }
