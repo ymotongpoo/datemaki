@@ -132,3 +132,25 @@ func TestNumericDate(t *testing.T) {
 		t.Logf("%v: %v (%v)", test, parsed, expected)
 	}
 }
+
+func TestParseAbsolute(t *testing.T) {
+	now := time.Now().In(time.Local)
+	tests := map[string]time.Time{
+		"August 6th":        time.Date(now.Year(), 8, 6, 0, 0, 0, 0, time.Local),
+		"Feb 28, 4AM":       time.Date(now.Year(), 2, 28, 4, 0, 0, 0, time.Local),
+		"2AM Jun 4":         time.Date(now.Year(), 1, 4, 2, 0, 0, 0, time.Local),
+		"6AM, June 7, 2009": time.Date(2009, 6, 7, 6, 0, 0, 0, time.Local),
+	}
+	for test, expected := range tests {
+		parsed, err := ParseAbsolute(test)
+		if err != nil {
+			t.Errorf("%v: error parsing: %v", test, err)
+			continue
+		}
+		if !parsed.Equal(expected) {
+			t.Errorf("%v: wrongly parsed, got %v, %v expected", test, parsed, expected)
+			continue
+		}
+		t.Logf("%v: %v (%v)", test, parsed, expected)
+	}
+}

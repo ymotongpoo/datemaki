@@ -16,6 +16,7 @@ package datemaki
 
 import (
 	"fmt"
+	"log"
 	"regexp"
 	"strconv"
 	"strings"
@@ -25,10 +26,11 @@ import (
 )
 
 var (
-	numericExp = regexp.MustCompile(`^[0-9/\.\ \-:]+$`)
-	hhmmExp    = regexp.MustCompile(`[0-9]{1,2}:[0-9]{1,2}`)
-	hhmmssExp  = regexp.MustCompile(`[0-9]{1,2}:[0-9]{1,2}:[0-9]{1,2}`)
-	unixZero   = time.Unix(0, 0)
+	numericExp    = regexp.MustCompile(`^[0-9/\.\ \-:]+$`)
+	hhmmExp       = regexp.MustCompile(`[0-9]{1,2}:[0-9]{1,2}`)
+	hhmmssExp     = regexp.MustCompile(`[0-9]{1,2}:[0-9]{1,2}:[0-9]{1,2}`)
+	ordinalDayExp = regexp.MustCompile(`[0-9]{1,2}(th|st|nd|rd)`)
+	unixZero      = time.Unix(0, 0)
 )
 
 var fullMonth = map[string]time.Month{
@@ -261,7 +263,62 @@ func ParseAbsolute(value string) (time.Time, error) {
 	if numericExp.MatchString(value) {
 		return parseNumeric(value)
 	}
-	return time.Now(), nil // TODO(ymotongpoo): implement me.
+
+	tokens := splitTokens(strings.ToLower(value))
+	year, day := 0, 0
+	var month time.Month
+	monthParsed := false
+	var t time.Time
+	log.Println(value)
+	for _, token := range tokens {
+		var ok bool
+		var err error
+		log.Println("\t" + token)
+		switch {
+		case len(token) == 4 && numericExp.MatchString(token):
+			year, err = strconv.Atoi(token)
+			if err != nil {
+				return unixZero, fmt.Errorf("%v, Unexpected year value: %v", value, err)
+			}
+		case ordinalDayExp.MatchString(token):
+			day, err = strconv.Atoi(token[:len(token)-2])
+			if err != nil {
+				return unixZero, fmt.Errorf("%v, Unexpected day value: %v", value, err)
+			}
+		case monthParsed:
+			day, err = strconv.Atoi(token)
+			if err != nil || day > 31 || day < 0 {
+				return unixZero, fmt.Errorf("%v, Unexpected day value: %v", value, err)
+			}
+		case strings.HasSuffix(token, "am") || strings.HasSuffix(token, "pm"):
+			t, err = parse12HourClock(token)
+			if err != nil {
+				return unixZero, fmt.Errorf("%v, Unexpected 12-hour clock time: %v", value, err)
+			}
+		default:
+			month, ok = fullMonth[token]
+			if ok {
+				break
+			}
+			month, ok = shortMonth[token]
+			if ok {
+				log.Println("ok")
+				break
+			}
+			m, err := strconv.Atoi(token)
+			if err != nil || m > 12 || m < 0 {
+				return unixZero, fmt.Errorf("%v, Unexpected month value: %v", value, err)
+			}
+			month = time.Month(m)
+			monthParsed = true
+		}
+	}
+
+	if year == 0 {
+		year = time.Now().Year()
+	}
+
+	return time.Date(year, month, day, t.Hour(), t.Minute(), t.Second(), 0, time.Local), nil // TODO(ymotongpoo): implement me.
 }
 
 // parseNumeric convers a datetime expressed all in digits to time.Time.
