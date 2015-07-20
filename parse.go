@@ -177,8 +177,12 @@ func ParseRelative(value string) (time.Time, error) {
 			var err error
 			t, err = parse12HourClock(tokens[i])
 			if err != nil {
-				return unixZero, fmt.Errorf("Unexpected time value, %v: %v", value, err) // TODO(ymotongpoo): numeric expression like "19:00" has to be supported here.
+				t, err = parseNumericTime(tokens[i])
+				if err != nil {
+					return unixZero, fmt.Errorf("Unexpected time value, %v: %v", value, err)
+				}
 			}
+
 		}
 	}
 	return t, nil
@@ -316,7 +320,27 @@ func ParseAbsolute(value string) (time.Time, error) {
 		year = time.Now().Year()
 	}
 
-	return time.Date(year, month, day, t.Hour(), t.Minute(), t.Second(), 0, time.Local), nil // TODO(ymotongpoo): implement me.
+	return time.Date(year, month, day, t.Hour(), t.Minute(), t.Second(), 0, time.Local), nil
+}
+
+// parseNumericTime converts a time expressed in digits to time.Time.
+func parseNumericTime(value string) (time.Time, error) {
+	now := time.Now()
+	var t time.Time
+	var err error
+	if hhmmssExp.MatchString(value) {
+		t, err = time.Parse("15:04:05", value)
+		if err != nil {
+			return now, fmt.Errorf("HHMMSS Unexpected format: %v", value)
+		}
+	} else if hhmmExp.MatchString(value) {
+		t, err = time.Parse("15:04", value)
+		if err != nil {
+			return now, fmt.Errorf("HHMM Unexpected format: %v", value)
+		}
+		return t, nil
+	}
+	return time.Date(now.Year(), now.Month(), now.Day(), t.Hour(), t.Minute(), t.Second(), 0, time.Local), nil
 }
 
 // parseNumeric convers a datetime expressed all in digits to time.Time.
@@ -345,15 +369,10 @@ func parseNumeric(value string) (time.Time, error) {
 					return now, fmt.Errorf("Error on parsing day: %v", value)
 				}
 			}
-		case hhmmssExp.MatchString(token):
-			t, err = time.Parse("15:04:05", token)
+		case hhmmssExp.MatchString(token) || hhmmExp.MatchString(token):
+			t, err = parseNumericTime(token)
 			if err != nil {
-				return now, fmt.Errorf("HHMMSS Unexpected format: %v", value)
-			}
-		case hhmmExp.MatchString(token):
-			t, err = time.Parse("15:04", token)
-			if err != nil {
-				return now, fmt.Errorf("HHMM Unexpected format: %v", value)
+				return now, fmt.Errorf("HHMMSS Unexpected format: %v, error: %v", value, err)
 			}
 		}
 	}
