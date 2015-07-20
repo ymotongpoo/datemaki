@@ -16,7 +16,6 @@ package datemaki
 
 import (
 	"fmt"
-	"log"
 	"regexp"
 	"strconv"
 	"strings"
@@ -269,11 +268,9 @@ func ParseAbsolute(value string) (time.Time, error) {
 	var month time.Month
 	monthParsed := false
 	var t time.Time
-	log.Println(value)
 	for _, token := range tokens {
 		var ok bool
 		var err error
-		log.Println("\t" + token)
 		switch {
 		case len(token) == 4 && numericExp.MatchString(token):
 			year, err = strconv.Atoi(token)
@@ -285,29 +282,30 @@ func ParseAbsolute(value string) (time.Time, error) {
 			if err != nil {
 				return unixZero, fmt.Errorf("%v, Unexpected day value: %v", value, err)
 			}
-		case monthParsed:
-			day, err = strconv.Atoi(token)
-			if err != nil || day > 31 || day < 0 {
-				return unixZero, fmt.Errorf("%v, Unexpected day value: %v", value, err)
-			}
 		case strings.HasSuffix(token, "am") || strings.HasSuffix(token, "pm"):
 			t, err = parse12HourClock(token)
 			if err != nil {
 				return unixZero, fmt.Errorf("%v, Unexpected 12-hour clock time: %v", value, err)
 			}
+		case monthParsed:
+			day, err = strconv.Atoi(token)
+			if err != nil || day > 31 || day < 0 {
+				return unixZero, fmt.Errorf("%v, Unexpected day value: %v", value, err)
+			}
 		default:
 			month, ok = fullMonth[token]
 			if ok {
+				monthParsed = true
 				break
 			}
 			month, ok = shortMonth[token]
 			if ok {
-				log.Println("ok")
+				monthParsed = true
 				break
 			}
 			m, err := strconv.Atoi(token)
 			if err != nil || m > 12 || m < 0 {
-				return unixZero, fmt.Errorf("%v, Unexpected month value: %v", value, err)
+				return unixZero, fmt.Errorf("%v, Unexpected month value, %v, error: %v", value, m, err)
 			}
 			month = time.Month(m)
 			monthParsed = true
