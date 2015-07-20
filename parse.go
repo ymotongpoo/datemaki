@@ -16,12 +16,50 @@ package datemaki
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
 	"unicode"
 	"unicode/utf8"
 )
+
+var (
+	numericExp = regexp.MustCompile(`^[0-9/\.\ \-:]+$`)
+	hhmmExp    = regexp.MustCompile(`[0-9]{1,2}:[0-9]{1,2}`)
+	hhmmssExp  = regexp.MustCompile(`[0-9]{1,2}:[0-9]{1,2}:[0-9]{1,2}`)
+	unixZero   = time.Unix(0, 0)
+)
+
+var fullMonth = map[string]time.Month{
+	"january":   time.January,
+	"february":  time.February,
+	"march":     time.March,
+	"april":     time.April,
+	"may":       time.May,
+	"june":      time.June,
+	"july":      time.July,
+	"august":    time.August,
+	"september": time.September,
+	"october":   time.October,
+	"november":  time.November,
+	"december":  time.December,
+}
+
+var shortMonth = map[string]time.Month{
+	"jan": time.January,
+	"feb": time.February,
+	"mar": time.March,
+	"apr": time.April,
+	"may": time.May,
+	"jun": time.June,
+	"jul": time.July,
+	"aug": time.August,
+	"sep": time.September,
+	"oct": time.October,
+	"nov": time.November,
+	"dec": time.December,
+}
 
 // Parse accepts contextful date format and returns absolute time.Time value.
 func Parse(value string) (time.Time, error) {
@@ -41,7 +79,7 @@ func Parse(value string) (time.Time, error) {
 // Currently, it only expects single byte character tokenizer.
 func splitTokens(value string) []string {
 	f := func(c rune) bool {
-		return c == rune(' ') || c == rune(',') || c == rune('.')
+		return c == rune(' ') || c == rune(',') || c == rune('.') || c == rune('/') || c == rune('-')
 	}
 	return strings.FieldsFunc(value, f)
 }
@@ -71,11 +109,11 @@ func ParseAgo(value string) (time.Time, error) {
 			var err error
 			n, err := strconv.Atoi(t)
 			if err != nil {
-				return now, fmt.Errorf("Format error: %v", t)
+				return unixZero, fmt.Errorf("Format error: %v", t)
 			}
 			now, err = subDate(now, n, tokens[i+1])
 			if err != nil {
-				return now, err
+				return unixZero, err
 			}
 			i++
 		}
@@ -138,7 +176,7 @@ func ParseRelative(value string) (time.Time, error) {
 			var err error
 			t, err = parse12HourClock(tokens[i])
 			if err != nil {
-				return t, fmt.Errorf("Unexpected time value, %v: %v", value, err) // TODO(ymotongpoo): numeric expression like "19:00" has to be supported here.
+				return unixZero, fmt.Errorf("Unexpected time value, %v: %v", value, err) // TODO(ymotongpoo): numeric expression like "19:00" has to be supported here.
 			}
 		}
 	}
@@ -183,7 +221,7 @@ func convertTimeWord(word string) (time.Time, error) {
 	case "midnight":
 		return time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local), nil
 	case "never":
-		return time.Unix(0, 0), nil
+		return unixZero, nil
 	}
 	return now, fmt.Errorf("Unsupported time word: %v", word)
 }
@@ -217,6 +255,55 @@ func parse12HourClock(word string) (time.Time, error) {
 	return time.Date(now.Year(), now.Month(), now.Day(), hour, 0, 0, 0, time.Local), nil
 }
 
+// ParseAbsolute converts absolute datetime into time.Time. Basic idea is same as time.Parse(),
+// but this detects the format of value and convert it automatically.
 func ParseAbsolute(value string) (time.Time, error) {
-	return time.Now(), nil // TODO(ymotongpoo): implement me
+	if numericExp.MatchString(value) {
+		return parseNumeric(value)
+	}
+	return time.Now(), nil // TODO(ymotongpoo): implement me.
+}
+
+// parseNumeric convers a datetime expressed all in digits to time.Time.
+func parseNumeric(value string) (time.Time, error) {
+	tokens := splitTokens(value)
+	now := time.Now()
+	year, month, day := 0, 0, 0
+	var t time.Time
+	for _, token := range tokens {
+		var err error
+		switch {
+		case len(token) == 4:
+			year, err = strconv.Atoi(token)
+			if err != nil { // time package can handle days before unixtime 0.
+				return now, fmt.Errorf("Error on parsing year: %v", value)
+			}
+		case len(token) == 2 || len(token) == 1:
+			if month == 0 {
+				month, err = strconv.Atoi(token)
+				if err != nil || month < 0 || month > 12 {
+					return now, fmt.Errorf("Error on parsing month: %v", value)
+				}
+			} else if day == 0 {
+				day, err = strconv.Atoi(token)
+				if err != nil || day < 0 || day > 31 {
+					return now, fmt.Errorf("Error on parsing day: %v", value)
+				}
+			}
+		case hhmmssExp.MatchString(token):
+			t, err = time.Parse("15:04:05", token)
+			if err != nil {
+				return now, fmt.Errorf("HHMMSS Unexpected format: %v", value)
+			}
+		case hhmmExp.MatchString(token):
+			t, err = time.Parse("15:04", token)
+			if err != nil {
+				return now, fmt.Errorf("HHMM Unexpected format: %v", value)
+			}
+		}
+	}
+	if year == 0 {
+		year = now.Year()
+	}
+	return time.Date(year, time.Month(month), day, t.Hour(), t.Minute(), t.Second(), 0, time.Local), nil
 }

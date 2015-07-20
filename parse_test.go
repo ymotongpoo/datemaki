@@ -17,6 +17,7 @@ package datemaki
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 var agoTests = []string{
@@ -39,6 +40,7 @@ func TestSplitTokens(t *testing.T) {
 		tokens := splitTokens(test)
 		if len(words) != len(tokens) {
 			t.Errorf("#%d: word counts are different, %d is expected, got %d", i, len(words), len(tokens))
+			continue
 		}
 	}
 }
@@ -48,6 +50,7 @@ func TestParseAgo(t *testing.T) {
 		parsed, err := ParseAgo(test)
 		if err != nil {
 			t.Errorf("#%v: %v", i, err)
+			continue
 		}
 		t.Logf("#%v: parsed: %v (%v)", i, parsed, test)
 	}
@@ -70,6 +73,7 @@ func TestHasRelative(t *testing.T) {
 	for i, test := range relativeTests {
 		if !hasRelative(test) {
 			t.Errorf("#%v: %v", i, test)
+			continue
 		}
 	}
 }
@@ -79,6 +83,7 @@ func TestParseRelative(t *testing.T) {
 		parsed, err := ParseRelative(test)
 		if err != nil {
 			t.Errorf("#%v: %v", i, err)
+			continue
 		}
 		t.Logf("#%v: %v (%v)", i, parsed, test)
 	}
@@ -96,7 +101,34 @@ func TestParse12HourClock(t *testing.T) {
 		parsed, err := parse12HourClock(test)
 		if err != nil {
 			t.Errorf("#%v: %v", i, err)
+			continue
 		}
 		t.Logf("#%v: %v (%v)", i, parsed, test)
+	}
+}
+
+func TestNumericDate(t *testing.T) {
+	now := time.Now().In(time.Local)
+	tests := map[string]time.Time{
+		"2008-12-01":       time.Date(2008, 12, 1, 0, 0, 0, 0, time.Local),
+		"06/05/2009":       time.Date(2009, 6, 5, 0, 0, 0, 0, time.Local),
+		"06.05.2009":       time.Date(2009, 6, 5, 0, 0, 0, 0, time.Local),
+		"06 05 2009":       time.Date(2009, 6, 5, 0, 0, 0, 0, time.Local),
+		"10/30":            time.Date(now.Year(), 10, 30, 0, 0, 0, 0, time.Local),
+		"01 02 2010 11:12": time.Date(2010, 1, 2, 11, 12, 0, 0, time.Local),
+		"8 9 1999 1:22:33": time.Date(1999, 8, 9, 1, 22, 33, 0, time.Local),
+	}
+
+	for test, expected := range tests {
+		parsed, err := parseNumeric(test)
+		if err != nil {
+			t.Errorf("%v: error parsing: %v", test, err)
+			continue
+		}
+		if !parsed.Equal(expected) {
+			t.Errorf("%v: wrongly parsed, got %v, %v expected", test, parsed, expected)
+			continue
+		}
+		t.Logf("%v: %v (%v)", test, parsed, expected)
 	}
 }
