@@ -154,3 +154,16 @@ func TestParseAbsolute(t *testing.T) {
 		t.Logf("%v: %v (%v)", test, parsed, expected)
 	}
 }
+
+func TestTimezoneExp(t *testing.T) {
+	tests := []string{
+		"2012-01-04 20:30:45 -05:00",
+		"2013-02-04 20:30:45 +1100",
+		"2014-04-03 20:30:45 -:30",
+	}
+	for i, test := range tests {
+		if !timezoneExp.MatchString(test) {
+			t.Errorf("#%v: not matched (%v)", i, test)
+		}
+	}
+}

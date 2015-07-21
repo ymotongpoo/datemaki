@@ -29,6 +29,7 @@ var (
 	hhmmExp       = regexp.MustCompile(`[0-9]{1,2}:[0-9]{1,2}`)
 	hhmmssExp     = regexp.MustCompile(`[0-9]{1,2}:[0-9]{1,2}:[0-9]{1,2}`)
 	ordinalDayExp = regexp.MustCompile(`[0-9]{1,2}(th|st|nd|rd)`)
+	timezoneExp   = regexp.MustCompile(`^[0-9]{1,4}-[0-9]{1,2}-[0-9]{1,2} [0-9]{1,2}:[0-9]{1,2}(:[0-9]{1,2})? (\+|-)([0-9]{1,2})?:?[0-9]{2}$`)
 	unixZero      = time.Unix(0, 0)
 )
 
