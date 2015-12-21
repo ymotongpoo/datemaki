@@ -332,16 +332,75 @@ func parseNumericTime(value string) (time.Time, error) {
 	if hhmmssExp.MatchString(value) {
 		t, err = time.Parse("15:04:05", value)
 		if err != nil {
-			return now, fmt.Errorf("HHMMSS Unexpected format: %v", value)
+			return parseBroadcasterTime(value)
 		}
+		return t, nil
 	} else if hhmmExp.MatchString(value) {
 		t, err = time.Parse("15:04", value)
 		if err != nil {
-			return now, fmt.Errorf("HHMM Unexpected format: %v", value)
+			return parseBroadcasterTime(value)
 		}
 		return t, nil
 	}
 	return time.Date(now.Year(), now.Month(), now.Day(), t.Hour(), t.Minute(), t.Second(), 0, time.Local), nil
+}
+
+// parseBroadcasterTime converts a non-standard time expression used in TV schedules into normal one.
+// eg. 30:00 (= 6am tomorrow)
+//
+// TODO(ymotongpoo): tentative implementation for Go Advent Calendar 2015
+func parseBroadcasterTime(value string) (time.Time, error) {
+	day := time.Now()
+	var err error
+	var hh, mm, ss int
+	if hhmmssExp.MatchString(value) {
+		tokens := strings.Split(value, ":")
+		hh, err = strconv.Atoi(tokens[0])
+		if err != nil {
+			return day, fmt.Errorf("HHMMSS Unexpected format: %v", value)
+		}
+		mm, err = strconv.Atoi(tokens[1])
+		if err != nil {
+			return day, fmt.Errorf("HHMMSS Unexpected format: %v", value)
+		}
+		ss, err = strconv.Atoi(tokens[2])
+		if err != nil {
+			return day, fmt.Errorf("HHMMSS Unexpected format: %v", value)
+		}
+		if ss > 60 {
+			mm += ss / 60
+			ss = ss % 60
+		}
+		if mm > 60 {
+			hh += mm / 60
+			mm = mm % 60
+		}
+		if hh > 24 {
+			day = day.AddDate(0, 0, hh/24)
+			hh = hh % 24
+		}
+		return time.Date(day.Year(), day.Month(), day.Day(), hh, mm, ss, 0, time.Local), nil
+	} else if hhmmExp.MatchString(value) { // TODO(ymotongpoo): merge into the condition above by treating this as HH:MM:00.
+		tokens := strings.Split(value, ":")
+		hh, err = strconv.Atoi(tokens[0])
+		if err != nil {
+			return day, fmt.Errorf("HHMM Unexpected format: %v", value)
+		}
+		mm, err = strconv.Atoi(tokens[1])
+		if err != nil {
+			return day, fmt.Errorf("HHMM Unexpected format: %v", value)
+		}
+		ss = 0
+		if mm > 60 {
+			hh += mm / 60
+			mm = mm % 60
+		}
+		if hh > 24 {
+			day = day.AddDate(0, 0, hh/24)
+			hh = hh % 24
+		}
+	}
+	return time.Date(day.Year(), day.Month(), day.Day(), hh, mm, ss, 0, time.Local), nil
 }
 
 // parseNumeric convers a datetime expressed all in digits to time.Time.

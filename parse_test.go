@@ -167,3 +167,29 @@ func TestTimezoneExp(t *testing.T) {
 		}
 	}
 }
+
+func TestParseBroadcasterTime(t *testing.T) {
+	now := time.Now()
+	tests := map[string]time.Time{
+		"30:00:00": time.Date(now.Year(), now.Month(), now.Day()+1, 6, 0, 0, 0, time.Local),
+		"25:30:00": time.Date(now.Year(), now.Month(), now.Day()+1, 1, 30, 0, 0, time.Local),
+		"24:10:00": time.Date(now.Year(), now.Month(), now.Day()+1, 0, 10, 0, 0, time.Local),
+		"24:10:80": time.Date(now.Year(), now.Month(), now.Day()+1, 0, 11, 20, 0, time.Local),
+		"20:70:80": time.Date(now.Year(), now.Month(), now.Day(), 21, 11, 20, 0, time.Local),
+		"26:70:80": time.Date(now.Year(), now.Month(), now.Day()+1, 3, 11, 20, 0, time.Local),
+		"25:00":    time.Date(now.Year(), now.Month(), now.Day()+1, 1, 00, 00, 0, time.Local),
+		"25:70":    time.Date(now.Year(), now.Month(), now.Day()+1, 2, 10, 00, 0, time.Local),
+	}
+	for test, expected := range tests {
+		parsed, err := parseBroadcasterTime(test)
+		if err != nil {
+			t.Errorf("%v: error parsing: %v", test, err)
+			continue
+		}
+		if !parsed.Equal(expected) {
+			t.Errorf("%v: wrongly parsed, got %v, %v expected", test, parsed, expected)
+			continue
+		}
+		t.Logf("%v: %v (%v)", test, parsed, expected)
+	}
+}
