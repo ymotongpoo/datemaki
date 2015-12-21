@@ -152,7 +152,8 @@ func subDate(t time.Time, n int, unit string) (time.Time, error) {
 // ParseRelative returns absolute datetime corresponding to relative date expressed in value.
 func ParseRelative(value string) (time.Time, error) {
 	tokens := splitTokens(value)
-	t := time.Now().In(time.Local)
+	var t time.Time
+	t = time.Now().In(time.Local)
 	for i := 0; i < len(tokens); i++ {
 		switch tokens[i] {
 		case "last":
@@ -175,15 +176,16 @@ func ParseRelative(value string) (time.Time, error) {
 		case "now", "never":
 			return convertTimeWord(tokens[i])
 		default:
+			var t1 time.Time
 			var err error
-			t, err = parse12HourClock(tokens[i])
+			t1, err = parse12HourClock(tokens[i])
 			if err != nil {
-				t, err = parseNumericTime(tokens[i])
+				t1, err = parseNumericTime(tokens[i])
 				if err != nil {
 					return unixZero, fmt.Errorf("Unexpected time value, %v: %v", value, err)
 				}
 			}
-
+			t = time.Date(t.Year(), t.Month(), t.Day(), t1.Hour(), t1.Minute(), t1.Second(), 0, time.Local)
 		}
 	}
 	return t, nil
@@ -291,6 +293,11 @@ func ParseAbsolute(value string) (time.Time, error) {
 			t, err = parse12HourClock(token)
 			if err != nil {
 				return unixZero, fmt.Errorf("%v, Unexpected 12-hour clock time: %v", value, err)
+			}
+		case strings.Index(token, ":") != -1:
+			t, err = parseNumericTime(token)
+			if err != nil {
+				return unixZero, fmt.Errorf("%v, Unexpected numeric time: %v", value, err)
 			}
 		case monthParsed:
 			day, err = strconv.Atoi(token)
