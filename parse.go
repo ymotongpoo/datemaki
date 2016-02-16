@@ -77,6 +77,16 @@ func Parse(value string) (time.Time, error) {
 	return time.Now().In(time.Local), nil // TODO(ymotongpoo): replace actual time.
 }
 
+// MustParse is like Parse but panics if the passed valuecannot be parsed.
+// It simplifies safe initialization of global variables holding parsed time.
+func MustParse(value string) time.Time {
+	result, err := Parse(value)
+	if err != nil {
+		panic(err)
+	}
+	return result
+}
+
 // splitTokens splits value with commas, periods and spaces.
 // Currently, it only expects single byte character tokenizer.
 func splitTokens(value string) []string {
